@@ -29,6 +29,7 @@ namespace FolderConsolidate
 
                 var sourceFolder = Config.Read("Consolidate:Source");
                 var targetFolder = Config.Read("Consolidate:Target");
+                var maskFiles = Config.Read("Consolidate:Mask");
                 var DelayMS = 5000;
 
                 try
@@ -41,6 +42,7 @@ namespace FolderConsolidate
 
                 _logger.LogInformation($"Source: {sourceFolder}");
                 _logger.LogInformation($"Target: {targetFolder}");
+                _logger.LogInformation($"Mask: {maskFiles}");
 
                 var targetFolderInfo = new DirectoryInfo(targetFolder);
                 if (!targetFolderInfo.Exists)
@@ -51,7 +53,7 @@ namespace FolderConsolidate
                 else
                 {
                     // DESCOBRIR TODOS OS ARQUIVOS DA ORIGEM
-                    var files = Directory.GetFiles(sourceFolder, "*.*", SearchOption.AllDirectories);
+                    var files = Directory.GetFiles(sourceFolder, maskFiles, SearchOption.AllDirectories);
                     foreach (var fileName in files)
                     {
                         // PARA CADA ARQUIVO, VERIFICAR O TAMANHO E COPIAR
