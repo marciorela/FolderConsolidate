@@ -23,26 +23,26 @@ namespace FolderConsolidate
         {
             _logger.LogInformation("Serviço iniciado: {time}", DateTimeOffset.Now);
 
+            var sourceFolder = Config.Read("Consolidate:Source");
+            var targetFolder = Config.Read("Consolidate:Target");
+            var maskFiles = Config.Read("Consolidate:Mask");
+            var DelayMS = 5000;
+
+            _logger.LogInformation($"Source: {sourceFolder}");
+            _logger.LogInformation($"Target: {targetFolder}");
+            _logger.LogInformation($"Mask: {maskFiles}");
+
+            try
+            {
+                DelayMS = Convert.ToInt32(Config.Read("Delay"));
+            }
+            catch (Exception)
+            {
+            }
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Verificando arquivos...");
-
-                var sourceFolder = Config.Read("Consolidate:Source");
-                var targetFolder = Config.Read("Consolidate:Target");
-                var maskFiles = Config.Read("Consolidate:Mask");
-                var DelayMS = 5000;
-
-                try
-                {
-                    DelayMS = Convert.ToInt32(Config.Read("Delay"));
-                }
-                catch (Exception)
-                {
-                }
-
-                _logger.LogInformation($"Source: {sourceFolder}");
-                _logger.LogInformation($"Target: {targetFolder}");
-                _logger.LogInformation($"Mask: {maskFiles}");
 
                 var targetFolderInfo = new DirectoryInfo(targetFolder);
                 if (!targetFolderInfo.Exists)
