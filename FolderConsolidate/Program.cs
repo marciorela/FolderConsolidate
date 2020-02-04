@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MR.Config;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Extensions.Logging;
@@ -10,7 +11,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MR.Config;
 
 namespace FolderConsolidate
 {
@@ -30,7 +30,16 @@ namespace FolderConsolidate
                 .Enrich.WithMemoryUsage()
                 .WriteTo.Async(w =>
                 {
-                    w.File(new CompactJsonFormatter(), System.AppDomain.CurrentDomain.BaseDirectory.ToString() + "\\logs\\log_.txt", rollingInterval: RollingInterval.Day, fileSizeLimitBytes: 1024 * 1024 * 20, buffered: true, flushToDiskInterval: TimeSpan.FromSeconds(1), rollOnFileSizeLimit: true);
+                    w.File(
+                        System.AppDomain.CurrentDomain.BaseDirectory.ToString() + "\\logs\\log_.txt",
+                        rollingInterval: RollingInterval.Day,
+                        fileSizeLimitBytes: 1024 * 1024 * 20,
+                        buffered: true,
+                        flushToDiskInterval: TimeSpan.FromSeconds(1),
+                        rollOnFileSizeLimit: true,
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u4}] | {AssemblyVersion} | {MemoryUsage} | {Message:l}{NewLine}{Exception}"
+                     );
+                    //w.File(new CompactJsonFormatter(), System.AppDomain.CurrentDomain.BaseDirectory.ToString() + "\\logs\\log_.txt", rollingInterval: RollingInterval.Day, fileSizeLimitBytes: 1024 * 1024 * 20, buffered: true, flushToDiskInterval: TimeSpan.FromSeconds(1), rollOnFileSizeLimit: true);
                 }, bufferSize: 500)
                 .CreateLogger();
 
