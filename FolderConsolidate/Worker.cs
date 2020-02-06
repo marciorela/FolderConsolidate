@@ -44,6 +44,7 @@ namespace FolderConsolidate
             {
                 _logger.LogInformation("Verificando arquivos...");
 
+                var sourceFolderInfo = new DirectoryInfo(sourceFolder);
                 var targetFolderInfo = new DirectoryInfo(targetFolder);
                 if (!targetFolderInfo.Exists)
                 {
@@ -53,12 +54,10 @@ namespace FolderConsolidate
                 else
                 {
                     // DESCOBRIR TODOS OS ARQUIVOS DA ORIGEM
-                    var files = Directory.GetFiles(sourceFolder, maskFiles, SearchOption.AllDirectories);
-                    foreach (var fileName in files)
+                    var files = sourceFolderInfo.GetFiles(maskFiles, SearchOption.AllDirectories).OrderBy(f => f.LastWriteTime).ToList();
+                    foreach (var fileInfo in files)
                     {
                         // PARA CADA ARQUIVO, VERIFICAR O TAMANHO E COPIAR
-                        var fileInfo = new FileInfo(fileName);
-
                         if (fileInfo.Length > 0)
                         {
                             var splitFolder = fileInfo.DirectoryName.Split("\\");
@@ -69,9 +68,9 @@ namespace FolderConsolidate
                                 splitFolder[splitFolder.Count() - 1] + "_" +
                                 fileInfo.Name;
 
-                            _logger.LogInformation($"Movendo {fileName} para {targetFileName}...");
+                            _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
 
-                            fileInfo.MoveTo(targetFileName);
+                            //fileInfo.MoveTo(targetFileName);
                         }
 
                     }
