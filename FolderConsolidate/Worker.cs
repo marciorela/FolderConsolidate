@@ -70,7 +70,7 @@ namespace FolderConsolidate
 
                             _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
 
-                            //fileInfo.MoveTo(targetFileName);
+                            fileInfo.MoveTo(targetFileName);
                         }
 
                     }
