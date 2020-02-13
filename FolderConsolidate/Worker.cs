@@ -23,25 +23,26 @@ namespace FolderConsolidate
         {
             _logger.LogInformation("Serviço iniciado: {time}", DateTimeOffset.Now);
 
-            var sourceFolder = Config.Read("Consolidate:Source");
-            var targetFolder = Config.Read("Consolidate:Target");
-            var maskFiles = Config.Read("Consolidate:Mask");
-            var DelayMS = 5000;
-
-            _logger.LogInformation($"Source: {sourceFolder}");
-            _logger.LogInformation($"Target: {targetFolder}");
-            _logger.LogInformation($"Mask: {maskFiles}");
-
-            try
-            {
-                DelayMS = Convert.ToInt32(Config.Read("Delay"));
-            }
-            catch (Exception)
-            {
-            }
-
             while (!stoppingToken.IsCancellationRequested)
             {
+                // CARREGA O ARQUIVO DE CONFIGURAÇÃO
+                var sourceFolder = Config.Read("Consolidate:Source");
+                var targetFolder = Config.Read("Consolidate:Target");
+                var maskFiles = Config.Read("Consolidate:Mask");
+                var DelayMS = 5000;
+
+                _logger.LogInformation($"Source: {sourceFolder}");
+                _logger.LogInformation($"Target: {targetFolder}");
+                _logger.LogInformation($"Mask: {maskFiles}");
+
+                try
+                {
+                    DelayMS = Convert.ToInt32(Config.Read("Delay"));
+                }
+                catch (Exception)
+                {
+                }
+
                 _logger.LogInformation("Verificando arquivos...");
 
                 var sourceFolderInfo = new DirectoryInfo(sourceFolder);
@@ -49,7 +50,6 @@ namespace FolderConsolidate
                 if (!targetFolderInfo.Exists)
                 {
                     _logger.LogWarning($"Diretório '{targetFolder}' não encontrado.");
-
                 }
                 else
                 {
@@ -62,11 +62,9 @@ namespace FolderConsolidate
                         {
                             var splitFolder = fileInfo.DirectoryName.Split("\\");
 
-
-
                             // var targetFileName = Path.Combine(targetFolderInfo.FullName, "*_" + splitFolder[splitFolder.Count() - 1] + "_" + fileInfo.Name);
 
-                            // var targetFileName = $"{targetFolderInfo.FullName}\\*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
+                            // SOMENTE O NOME DO ARQUIVO, PQ O targetFolderInfo JÁ APONTA PARA A PASTA CORRETA
                             var targetFileName = $"*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
 
                             var filesDest = targetFolderInfo.GetFiles(targetFileName).ToList();
@@ -84,6 +82,12 @@ namespace FolderConsolidate
                                 fileInfo.Delete();
                             }
 
+                        }
+                        else if ((DateTime.Now - fileInfo.LastWriteTime).TotalDays > 2) 
+                        {
+                            // SE O ARQUIVO ZERADO TEM MAIS DE DOIS DIAS, PODE EXCLUIR
+                            _logger.LogInformation($"Excluindo arquivo zerado {fileInfo.Name}");
+                            fileInfo.Delete();
                         }
 
                     }
