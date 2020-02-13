@@ -61,16 +61,29 @@ namespace FolderConsolidate
                         if (fileInfo.Length > 0)
                         {
                             var splitFolder = fileInfo.DirectoryName.Split("\\");
-                            var nextFileNumber = GetNumberOfNextFile(targetFolder);
-                            var targetFileName =
-                                targetFolderInfo.FullName + "\\" +
-                                nextFileNumber.ToString("D3") + "_" +
-                                splitFolder[splitFolder.Count() - 1] + "_" +
-                                fileInfo.Name;
 
-                            _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
 
-                            fileInfo.MoveTo(targetFileName);
+
+                            // var targetFileName = Path.Combine(targetFolderInfo.FullName, "*_" + splitFolder[splitFolder.Count() - 1] + "_" + fileInfo.Name);
+
+                            // var targetFileName = $"{targetFolderInfo.FullName}\\*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
+                            var targetFileName = $"*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
+
+                            var filesDest = targetFolderInfo.GetFiles(targetFileName).ToList();
+                            if (filesDest.Count() == 0)
+                            {
+                                var nextFileNumber = GetNumberOfNextFile(targetFolder);
+                                targetFileName = Path.Combine(targetFolderInfo.FullName, targetFileName.Replace("*", nextFileNumber.ToString("D3")));
+
+                                _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
+                                fileInfo.MoveTo(targetFileName);
+                            }
+                            else
+                            {
+                                _logger.LogInformation($"Arquivo {fileInfo.Name} existe no destino. Excluindo...");
+                                fileInfo.Delete();
+                            }
+
                         }
 
                     }
