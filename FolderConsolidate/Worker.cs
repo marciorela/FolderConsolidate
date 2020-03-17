@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 using MR.Config;
 
 namespace FolderConsolidate
@@ -13,6 +15,7 @@ namespace FolderConsolidate
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
+        private DateTime lastRunAt = DateTime.MinValue;
 
         public Worker(ILogger<Worker> logger)
         {
@@ -29,11 +32,16 @@ namespace FolderConsolidate
                 var sourceFolder = Config.Read("Consolidate:Source");
                 var targetFolder = Config.Read("Consolidate:Target");
                 var maskFiles = Config.Read("Consolidate:Mask");
+                var renumerateFilesAt = Convert.ToDateTime("00:00");
                 var DelayMS = 5000;
 
-                _logger.LogInformation($"Source: {sourceFolder}");
-                _logger.LogInformation($"Target: {targetFolder}");
-                _logger.LogInformation($"Mask: {maskFiles}");
+                try
+                {
+                    renumerateFilesAt = Convert.ToDateTime(Config.Read("RenumerateAt"));
+                }
+                catch (Exception)
+                {
+                }
 
                 try
                 {
@@ -53,6 +61,15 @@ namespace FolderConsolidate
                 }
                 else
                 {
+                    if (ExecuteOnceAt(renumerateFilesAt))
+                    {
+                        _logger.LogInformation($"Source: {sourceFolder}");
+                        _logger.LogInformation($"Target: {targetFolder}");
+                        _logger.LogInformation($"Mask: {maskFiles}");
+
+                        RenumerateFiles(targetFolderInfo);
+                    }
+
                     // DESCOBRIR TODOS OS ARQUIVOS DA ORIGEM
                     var files = sourceFolderInfo.GetFiles(maskFiles, SearchOption.AllDirectories).OrderBy(f => f.LastWriteTime).ToList();
                     foreach (var fileInfo in files)
@@ -83,7 +100,7 @@ namespace FolderConsolidate
                             }
 
                         }
-                        else if ((DateTime.Now - fileInfo.LastWriteTime).TotalDays > 2) 
+                        else if ((DateTime.Now - fileInfo.LastWriteTime).TotalDays > 2)
                         {
                             // SE O ARQUIVO ZERADO TEM MAIS DE DOIS DIAS, PODE EXCLUIR
                             _logger.LogInformation($"Excluindo arquivo zerado {fileInfo.Name}");
@@ -108,6 +125,36 @@ namespace FolderConsolidate
             }
 
             return (lastNumber + 1);
+        }
+
+        private void RenumerateFiles(DirectoryInfo targetFolder)
+        {
+            _logger.LogInformation("Renumerando arquivos...");
+
+            var iCount = 0;
+            var files = targetFolder.GetFiles().OrderBy(f => f.Name);
+
+            _logger.LogInformation($"{files.Count()} arquivos encontrados.");
+            foreach (var file in files)
+            {
+                var newFileName = Path.Combine(targetFolder.FullName, (++iCount).ToString("d3") + file.Name.Substring(3));
+                file.MoveTo(newFileName);
+            }
+
+            _logger.LogInformation("Arquivos renumerados.");
+        }
+
+        private bool ExecuteOnceAt(DateTime runAt)
+        {
+            if (lastRunAt.Date < DateTime.Now.Date && DateTime.Now.TimeOfDay > runAt.TimeOfDay)
+            {
+                lastRunAt = DateTime.Now;
+                return true;
+            } 
+            else
+            {
+                return false;
+            }
         }
     }
 }
