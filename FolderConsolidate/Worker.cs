@@ -87,7 +87,7 @@ namespace FolderConsolidate
                             var filesDest = targetFolderInfo.GetFiles(targetFileName).ToList();
                             if (filesDest.Count() == 0)
                             {
-                                var nextFileNumber = GetNumberOfNextFile(targetFolder);
+                                var nextFileNumber = GetNumberOfNextFile(targetFolder, maskFiles);
                                 targetFileName = Path.Combine(targetFolderInfo.FullName, targetFileName.Replace("*", nextFileNumber.ToString("D3")));
 
                                 _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
@@ -113,9 +113,9 @@ namespace FolderConsolidate
             }
         }
 
-        private int GetNumberOfNextFile(string target)
+        private int GetNumberOfNextFile(string target, string pattern)
         {
-            var files = Directory.GetFiles(target).OrderBy(o => o).ToList();
+            var files = Directory.GetFiles(target, pattern).OrderBy(o => o).ToList();
             var lastNumber = 0;
 
             if (files.Count() > 0)
