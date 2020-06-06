@@ -19,7 +19,7 @@ namespace FolderConsolidate
         public static void Main(string[] args)
         {
             var configuration = new ConfigurationBuilder()
-                .AddJsonFile(Config.CfgFileName())
+                .AddJsonFile(MRConfig.CfgFileName())
                 .Build();
 
             Log.Logger = new LoggerConfiguration()

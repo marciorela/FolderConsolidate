@@ -5,6 +5,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using FolderConsolidate.Domain;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
@@ -28,85 +30,96 @@ namespace FolderConsolidate
 
             while (!stoppingToken.IsCancellationRequested)
             {
+
+                var folders = MRConfig.ReadSection<FolderConfig>("Consolidate");
+                //var folders = config.GetSection("Consolidate").Get<List<FolderConfig>>();
+
                 // CARREGA O ARQUIVO DE CONFIGURAÇÃO
-                var sourceFolder = Config.Read("Consolidate:Source");
-                var targetFolder = Config.Read("Consolidate:Target");
-                var maskFiles = Config.Read("Consolidate:Mask");
+                //var sourceFolder = MRConfig.Read("Consolidate:Source");
+                //var targetFolder = MRConfig.Read("Consolidate:Target");
+                //var maskFiles = MRConfig.Read("Consolidate:Mask");
                 var renumerateFilesAt = Convert.ToDateTime("00:00");
                 var DelayMS = 5000;
 
-                try
+                if (ExecuteOnceAt(renumerateFilesAt))
                 {
-                    renumerateFilesAt = Convert.ToDateTime(Config.Read("RenumerateAt"));
-                }
-                catch (Exception)
-                {
-                }
-
-                try
-                {
-                    DelayMS = Convert.ToInt32(Config.Read("Delay"));
-                }
-                catch (Exception)
-                {
-                }
-
-                _logger.LogInformation("Verificando arquivos...");
-
-                var sourceFolderInfo = new DirectoryInfo(sourceFolder);
-                var targetFolderInfo = new DirectoryInfo(targetFolder);
-                if (!targetFolderInfo.Exists)
-                {
-                    _logger.LogWarning($"Diretório '{targetFolder}' não encontrado.");
-                }
-                else
-                {
-                    if (ExecuteOnceAt(renumerateFilesAt))
+                    foreach (var folder in folders)
                     {
-                        _logger.LogInformation($"Source: {sourceFolder}");
-                        _logger.LogInformation($"Target: {targetFolder}");
-                        _logger.LogInformation($"Mask: {maskFiles}");
+                        _logger.LogInformation($"Source: {folder.Source}");
+                        _logger.LogInformation($"Target: {folder.Target}");
+                        _logger.LogInformation($"Mask: {folder.Mask}");
 
-                        RenumerateFiles(targetFolderInfo);
+                        RenumerateFiles(folder.Target);
+                    }
+                }
+
+                foreach (var folder in folders)
+                {
+
+                    try
+                    {
+                        renumerateFilesAt = Convert.ToDateTime(MRConfig.Read("RenumerateAt"));
+                    }
+                    catch (Exception)
+                    {
                     }
 
-                    // DESCOBRIR TODOS OS ARQUIVOS DA ORIGEM
-                    var files = sourceFolderInfo.GetFiles(maskFiles, SearchOption.AllDirectories).OrderBy(f => f.LastWriteTime).ToList();
-                    foreach (var fileInfo in files)
+                    try
                     {
-                        // PARA CADA ARQUIVO, VERIFICAR O TAMANHO E COPIAR
-                        if (fileInfo.Length > 0)
+                        DelayMS = Convert.ToInt32(MRConfig.Read("Delay"));
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    _logger.LogInformation("Verificando arquivos...");
+
+                    var sourceFolderInfo = new DirectoryInfo(folder.Source);
+                    var targetFolderInfo = new DirectoryInfo(folder.Target);
+                    if (!targetFolderInfo.Exists)
+                    {
+                        _logger.LogWarning($"Diretório '{folder.Target}' não encontrado.");
+                    }
+                    else
+                    {
+                        // DESCOBRIR TODOS OS ARQUIVOS DA ORIGEM
+                        var files = sourceFolderInfo.GetFiles(folder.Mask, SearchOption.AllDirectories).OrderBy(f => f.LastWriteTime).ToList();
+                        foreach (var fileInfo in files)
                         {
-                            var splitFolder = fileInfo.DirectoryName.Split("\\");
-
-                            // var targetFileName = Path.Combine(targetFolderInfo.FullName, "*_" + splitFolder[splitFolder.Count() - 1] + "_" + fileInfo.Name);
-
-                            // SOMENTE O NOME DO ARQUIVO, PQ O targetFolderInfo JÁ APONTA PARA A PASTA CORRETA
-                            var targetFileName = $"*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
-
-                            var filesDest = targetFolderInfo.GetFiles(targetFileName).ToList();
-                            if (filesDest.Count() == 0)
+                            // PARA CADA ARQUIVO, VERIFICAR O TAMANHO E COPIAR
+                            if (fileInfo.Length > 0)
                             {
-                                var nextFileNumber = GetNumberOfNextFile(targetFolder, maskFiles);
-                                targetFileName = Path.Combine(targetFolderInfo.FullName, targetFileName.Replace("*", nextFileNumber.ToString("D3")));
+                                var splitFolder = fileInfo.DirectoryName.Split("\\");
 
-                                _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
-                                fileInfo.MoveTo(targetFileName);
+                                // var targetFileName = Path.Combine(targetFolderInfo.FullName, "*_" + splitFolder[splitFolder.Count() - 1] + "_" + fileInfo.Name);
+
+                                // SOMENTE O NOME DO ARQUIVO, PQ O targetFolderInfo JÁ APONTA PARA A PASTA CORRETA
+                                var targetFileName = $"*_{splitFolder[splitFolder.Count() - 1]}_{fileInfo.Name}";
+
+                                var filesDest = targetFolderInfo.GetFiles(targetFileName).ToList();
+                                if (filesDest.Count() == 0)
+                                {
+                                    var nextFileNumber = GetNumberOfNextFile(folder.Target, folder.Mask);
+                                    targetFileName = Path.Combine(targetFolderInfo.FullName, targetFileName.Replace("*", nextFileNumber.ToString("D3")));
+
+                                    _logger.LogInformation($"Movendo {fileInfo.Name} para {targetFileName}...");
+                                    fileInfo.MoveTo(targetFileName);
+                                }
+                                else
+                                {
+                                    _logger.LogInformation($"Arquivo {fileInfo.Name} existe no destino. Excluindo...");
+                                    fileInfo.Delete();
+                                }
+
                             }
-                            else
+                            else if ((DateTime.Now - fileInfo.LastWriteTime).TotalDays > 2)
                             {
-                                _logger.LogInformation($"Arquivo {fileInfo.Name} existe no destino. Excluindo...");
+                                // SE O ARQUIVO ZERADO TEM MAIS DE DOIS DIAS, PODE EXCLUIR
+                                _logger.LogInformation($"Excluindo arquivo zerado {fileInfo.Name}");
                                 fileInfo.Delete();
                             }
 
                         }
-                        else if ((DateTime.Now - fileInfo.LastWriteTime).TotalDays > 2)
-                        {
-                            // SE O ARQUIVO ZERADO TEM MAIS DE DOIS DIAS, PODE EXCLUIR
-                            _logger.LogInformation($"Excluindo arquivo zerado {fileInfo.Name}");
-                            fileInfo.Delete();
-                        }
-
                     }
                 }
                 await Task.Delay(DelayMS, stoppingToken);
@@ -127,21 +140,26 @@ namespace FolderConsolidate
             return (lastNumber + 1);
         }
 
-        private void RenumerateFiles(DirectoryInfo targetFolder)
+        private void RenumerateFiles(string targetFolder)
         {
-            _logger.LogInformation("Renumerando arquivos...");
+            var targetFolderInfo = new DirectoryInfo(targetFolder);
 
-            var iCount = 0;
-            var files = targetFolder.GetFiles().OrderBy(f => f.Name);
-
-            _logger.LogInformation($"{files.Count()} arquivos encontrados.");
-            foreach (var file in files)
+            if (targetFolderInfo.Exists)
             {
-                var newFileName = Path.Combine(targetFolder.FullName, (++iCount).ToString("d3") + file.Name.Substring(3));
-                file.MoveTo(newFileName);
-            }
+                _logger.LogInformation("Renumerando arquivos...");
 
-            _logger.LogInformation("Arquivos renumerados.");
+                var iCount = 0;
+                var files = targetFolderInfo.GetFiles().OrderBy(f => f.Name);
+
+                _logger.LogInformation($"{files.Count()} arquivos encontrados.");
+                foreach (var file in files)
+                {
+                    var newFileName = Path.Combine(targetFolderInfo.FullName, (++iCount).ToString("d3") + file.Name.Substring(3));
+                    file.MoveTo(newFileName);
+                }
+
+                _logger.LogInformation("Arquivos renumerados.");
+            }
         }
 
         private bool ExecuteOnceAt(DateTime runAt)
