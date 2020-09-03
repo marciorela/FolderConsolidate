@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MR.Config;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Extensions.Logging;
@@ -18,12 +17,12 @@ namespace FolderConsolidate
     {
         public static void Main(string[] args)
         {
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile(MRConfig.CfgFileName())
-                .Build();
+            //var configuration = new ConfigurationBuilder()
+            //    .AddJsonFile(MRConfig.CfgFileName())
+            //    .Build();
 
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(configuration)
+                //.ReadFrom.Configuration(configuration)
                 .Enrich.WithMachineName()
                 .Enrich.WithEnvironmentUserName()
                 .Enrich.WithAssemblyVersion()

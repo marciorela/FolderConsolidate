@@ -10,18 +10,19 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
-using MR.Config;
 
 namespace FolderConsolidate
 {
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
+        private readonly IConfiguration config;
         private DateTime lastRunAt = DateTime.MinValue;
 
-        public Worker(ILogger<Worker> logger)
+        public Worker(ILogger<Worker> logger, IConfiguration config)
         {
             _logger = logger;
+            this.config = config;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,7 +32,9 @@ namespace FolderConsolidate
             while (!stoppingToken.IsCancellationRequested)
             {
 
-                var folders = MRConfig.ReadSection<FolderConfig>("Consolidate");
+                var folders = config.GetSection("Consolidate").Get<List<FolderConfig>>();
+
+                //var folders = MRConfig.ReadSection<FolderConfig>("Consolidate");
                 //var folders = config.GetSection("Consolidate").Get<List<FolderConfig>>();
 
                 // CARREGA O ARQUIVO DE CONFIGURAÇÃO
@@ -43,6 +46,22 @@ namespace FolderConsolidate
 
                 if (ExecuteOnceAt(renumerateFilesAt))
                 {
+                    try
+                    {
+                        renumerateFilesAt = Convert.ToDateTime(config.GetValue<string>("RenumerateAt"));
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    try
+                    {
+                        DelayMS = Convert.ToInt32(config.GetValue<string>("Delay"));
+                    }
+                    catch (Exception)
+                    {
+                    }
+
                     foreach (var folder in folders)
                     {
                         _logger.LogInformation($"Source: {folder.Source}");
@@ -55,22 +74,6 @@ namespace FolderConsolidate
 
                 foreach (var folder in folders)
                 {
-
-                    try
-                    {
-                        renumerateFilesAt = Convert.ToDateTime(MRConfig.Read("RenumerateAt"));
-                    }
-                    catch (Exception)
-                    {
-                    }
-
-                    try
-                    {
-                        DelayMS = Convert.ToInt32(MRConfig.Read("Delay"));
-                    }
-                    catch (Exception)
-                    {
-                    }
 
                     _logger.LogInformation("Verificando arquivos...");
 
