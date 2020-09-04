@@ -18,6 +18,9 @@ namespace FolderConsolidate
         private readonly ILogger<Worker> _logger;
         private readonly IConfiguration config;
         private DateTime lastRunAt = DateTime.MinValue;
+        private DateTime renumerateFilesAt = Convert.ToDateTime("00:00");
+        private int DelayMS = 5000;
+
 
         public Worker(ILogger<Worker> logger, IConfiguration config)
         {
@@ -41,9 +44,6 @@ namespace FolderConsolidate
                 //var sourceFolder = MRConfig.Read("Consolidate:Source");
                 //var targetFolder = MRConfig.Read("Consolidate:Target");
                 //var maskFiles = MRConfig.Read("Consolidate:Mask");
-                var renumerateFilesAt = Convert.ToDateTime("00:00");
-                var DelayMS = 5000;
-
                 if (ExecuteOnceAt(renumerateFilesAt))
                 {
                     try
@@ -56,10 +56,11 @@ namespace FolderConsolidate
 
                     try
                     {
-                        DelayMS = Convert.ToInt32(config.GetValue<string>("Delay"));
+                        DelayMS = config.GetValue<int>("Delay");
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        _logger.LogError(e, "Não foi possível ler o parâmetro Delay");
                     }
 
                     foreach (var folder in folders)
